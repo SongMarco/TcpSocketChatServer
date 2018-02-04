@@ -1,5 +1,9 @@
 package com.company;
 
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -18,8 +22,11 @@ import java.util.Iterator;
 public class ChatServer {
 
 
-    //서버에 접속한 클라이언트의 해쉬맵
+    //서버에 접속한 클라이언트의 해쉬맵 : 유저 이메일 - 아웃풋 스트림으로 구성됨
     HashMap<String, DataOutputStream> clients;
+
+    //채팅방의 해쉬맵.
+    HashMap<Integer, String> rooms;
 
     //서버 소켓
     private ServerSocket serverSocket = null;
@@ -34,10 +41,19 @@ public class ChatServer {
     public ChatServer() {
 
         // 클라이언트 해쉬맵 생성자(Key, value) 선언
+
+        //유저의 이름과, 해당 유저가 생성한 소켓의 아웃풋 스트림으로 구성됨
         clients = new HashMap<String, DataOutputStream>();
+
+
+        //방 정보 : 방 id값, 유저 이름으로 구성됨
+        rooms = new HashMap<Integer, String>();
+
+
 
         // clients 동기화
         Collections.synchronizedMap(clients);
+        Collections.synchronizedMap(rooms);
     }
 
     private void start() {
@@ -54,7 +70,7 @@ public class ChatServer {
             serverSocket = new ServerSocket(port);
 
             //서버가 대기중이라는 메세지를 출력
-            System.out.println("접속대기중");
+            System.out.println("서버가 접속 대기중입니다 ...");
 
             //서버가 클라이언트로부터의 연결을 기다린다.
             while (true) {
@@ -79,7 +95,7 @@ public class ChatServer {
         Socket socket = null;
 
         String emailUser = null;
-        String msg = null;
+
 
         DataInputStream input;
         DataOutputStream output;
@@ -108,6 +124,8 @@ public class ChatServer {
                 System.out.println("사용자 이메일 : " + emailUser);
 
                 clients.put(emailUser, output);
+                System.out.println(emailUser+"유저의 OutputStream : " + clients.get(emailUser) );
+
                 sendMsg(emailUser + "   접속");
 
                 // 그후에 채팅메세지수신시
@@ -119,11 +137,33 @@ public class ChatServer {
                         //서버에 접속한 클라이언트들에게 메세지를 보낸다 : 방나누기 할 경우 달라짐@@@
                         sendMsg(tempMsg);
 
-                        System.out.println(tempMsg);
+                        System.out.println("서버에서 보낼 메시지 = "+tempMsg);
+                        JSONParser jsonParser = new JSONParser();
+                        JSONObject jsonObject = (JSONObject) jsonParser.parse(tempMsg);
+
+
+                        int idGroup = Integer.parseInt( jsonObject.get("idGroup").toString() );
+
+                        String chatText = jsonObject.get("chatText").toString();
+
+                        String chatWriterEmail = jsonObject.get("chatWriterEmail").toString();
+
+                        String chatWriterName = jsonObject.get("chatWriterName").toString();
+
+                        String chatTime = jsonObject.get("chatTime").toString();
+
+                        String chatWriterProfile =  jsonObject.get("chatWriterProfile").toString();
+
+                        System.out.println("변환한 객체 = "+idGroup+chatText+chatWriterEmail+chatWriterName+chatText+chatTime+chatWriterProfile);
+
+
+
 
                     } catch (IOException e) {
                         sendMsg("No massege");
                         break;
+                    } catch (ParseException e) {
+                        e.printStackTrace();
                     }
                 }
             } catch (IOException e) {
@@ -144,6 +184,8 @@ public class ChatServer {
                 try {
                     OutputStream dos = clients.get(iterator.next());
                     // System.out.println(msg);
+
+                    //아웃풋 스트림을 통해 메시지를 보낸다 -> 채팅 내용이 서버에서 클라이언트로 전달된다.
                     DataOutputStream output = new DataOutputStream(dos);
                     output.writeUTF(msg);
 
