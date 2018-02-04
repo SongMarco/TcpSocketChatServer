@@ -11,6 +11,7 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -25,8 +26,17 @@ public class ChatServer {
     //서버에 접속한 클라이언트의 해쉬맵 : 유저 이메일 - 아웃풋 스트림으로 구성됨
     HashMap<String, DataOutputStream> clients;
 
-    //채팅방의 해쉬맵.
-    HashMap<Integer, String> rooms;
+    //채팅방의 해쉬맵. 방 id값 - 방 객체로 이루어짐
+//    HashMap<Integer, ChatRoom> rooms;
+
+    //유저 정보 리스트 생성
+    ArrayList<UserInfo> listUser;
+
+
+    //채팅방 id
+    int idGroup;
+
+
 
     //서버 소켓
     private ServerSocket serverSocket = null;
@@ -45,15 +55,13 @@ public class ChatServer {
         //유저의 이름과, 해당 유저가 생성한 소켓의 아웃풋 스트림으로 구성됨
         clients = new HashMap<String, DataOutputStream>();
 
-
-        //방 정보 : 방 id값, 유저 이름으로 구성됨
-        rooms = new HashMap<Integer, String>();
-
+        listUser = new ArrayList<UserInfo>();
+//        rooms = new HashMap<Integer, ChatRoom>();
 
 
         // clients 동기화
         Collections.synchronizedMap(clients);
-        Collections.synchronizedMap(rooms);
+
     }
 
     private void start() {
@@ -89,6 +97,74 @@ public class ChatServer {
             System.out.println(e);
         }
     }
+
+//    class ChatRoom {
+//
+//        //그룹 id값
+//        int idGroup;
+//
+//        //채팅 방의 유저 해쉬맵. 유저 이메일-아웃풋 스트림으로 짝지어짐.
+//        HashMap<String, DataOutputStream> roomUsers;
+//
+//        // 채팅방의 생성자 : id를 기입하고, 유저 목록 초기화
+//        public ChatRoom(int idGroup){
+//
+//            this.idGroup = idGroup;
+//            this.roomUsers = new HashMap<String, DataOutputStream>();
+//
+//        }
+//
+//        //방에 유저가 들어왔을 때 해쉬맵에 추가
+//        public void addUser(String userEmail, DataOutputStream outputStream){
+//
+//            roomUsers.put(userEmail, outputStream );
+//
+//        }
+//
+//        //방에서 유저가 나갈 때 해쉬맵에서 제거
+//        //방에 유저가 들어왔을 때 해쉬맵에 추가
+//        public void outUser(String userEmail){
+//
+//            roomUsers.remove(userEmail);
+//
+//        }
+//
+//        public void printInfo(){
+//
+//            System.out.println("idGroup = "+idGroup);
+//
+//            Iterator<String> iterator = roomUsers.keySet().iterator();
+//// 반복자를 이용해서 출력
+//            while (iterator.hasNext()) {
+//                String key = (String)iterator.next(); // 키 얻기
+//                System.out.print("key="+key+" / value="+roomUsers.get(key));  // 출력
+//            }
+//
+//        }
+//
+//
+//
+//    }
+
+    class UserInfo {
+
+        //그룹 id
+        int idGroup;
+
+        //유저 이메일
+        String emailUser;
+
+        //데이터 아웃스트림림
+        DataOutputStream dataOutputStream;
+
+        public UserInfo(int idGroup, String emailUser, DataOutputStream dataOutputStream) {
+            this.idGroup = idGroup;
+            this.emailUser = emailUser;
+            this.dataOutputStream = dataOutputStream;
+        }
+
+    }
+
 
     class ServerChatThread extends Thread {
 
@@ -128,33 +204,84 @@ public class ChatServer {
 
                 sendMsg(emailUser + "   접속");
 
+
+
                 // 그후에 채팅메세지수신시
                 while (input != null) {
                     try {
                         //클라이언트가 보낸 메세지를 읽어들인다.
                         String tempMsg = input.readUTF();
 
-                        //서버에 접속한 클라이언트들에게 메세지를 보낸다 : 방나누기 할 경우 달라짐@@@
-                        sendMsg(tempMsg);
+
 
                         System.out.println("서버에서 보낼 메시지 = "+tempMsg);
                         JSONParser jsonParser = new JSONParser();
                         JSONObject jsonObject = (JSONObject) jsonParser.parse(tempMsg);
 
 
-                        int idGroup = Integer.parseInt( jsonObject.get("idGroup").toString() );
+                        idGroup = Integer.parseInt( jsonObject.get("idGroup").toString() );
 
-                        String chatText = jsonObject.get("chatText").toString();
+
+//                        //userInfo 리스트에 유저 정보가 없다면 추가하기
+//                        if( isUserFirst()  ){
+//                            UserInfo userInfo = new UserInfo(idGroup, emailUser, output);
+//
+//                            listUser.add(userInfo);
+//
+//                            System.out.println("유저가 추가되었습니다.");
+//                        }
+
+
+                        //서버에 접속한 클라이언트들에게 메세지를 보낸다 : 방나누기 할 경우 달라짐@@@
+                        sendMsg(tempMsg);
+//
+//                        //방이 존재할 경우 그대로 유저를 추가하면 됨
+//                        if(rooms.containsKey(idGroup) )
+//                        {
+//                            System.out.println("기존 방에 추가");
+//
+//
+//                            //방 해쉬맵에서 방을 가져온다
+//                            ChatRoom chatRoom = rooms.get(idGroup);
+//
+//                            //방에 유저 추가
+//                            chatRoom.addUser(emailUser, output);
+//
+//                            chatRoom.printInfo();
+//                        }
+//                        //방이 존재하지 않음 -> 새 방을 생성 후 유저 추가
+//                        else{
+//
+//
+//                            System.out.println("새 방 생성");
+//                            //새 방 생성
+//                            ChatRoom chatRoom = new ChatRoom(idGroup);
+//
+//                            //방 해쉬맵에 방 추가
+//                            rooms.put(idGroup, chatRoom);
+//
+//                            //방에 유저 추가
+//                            chatRoom.addUser(emailUser, output);
+//
+//                            chatRoom.printInfo();
+//                        }
+//
+
+
+//                        String chatText = jsonObject.get("chatText").toString();
+//                        String chatWriterName = jsonObject.get("chatWriterName").toString();
+//
+//                        String chatTime = jsonObject.get("chatTime").toString();
+//                        String chatWriterProfile =  jsonObject.get("chatWriterProfile").toString();
 
                         String chatWriterEmail = jsonObject.get("chatWriterEmail").toString();
 
-                        String chatWriterName = jsonObject.get("chatWriterName").toString();
 
-                        String chatTime = jsonObject.get("chatTime").toString();
 
-                        String chatWriterProfile =  jsonObject.get("chatWriterProfile").toString();
 
-                        System.out.println("변환한 객체 = "+idGroup+chatText+chatWriterEmail+chatWriterName+chatText+chatTime+chatWriterProfile);
+
+//                        System.out.println("변환한 객체 = "+idGroup+chatText+chatWriterEmail+chatWriterName+chatText+chatTime+chatWriterProfile);
+
 
 
 
@@ -171,6 +298,26 @@ public class ChatServer {
             }
         }
 
+        private boolean isUserFirst(){
+
+            for(int i = 0 ; i < listUser.size(); i++){
+
+                UserInfo userInfo = listUser.get(i);
+
+                //방 id 같고 유저 동일 -> 추가 X
+                if(  userInfo.idGroup == idGroup && userInfo.emailUser.equals(emailUser)){
+
+                    return false;
+                }
+
+
+            }
+
+            return true;
+
+
+        }
+
         // 메세지수신후 클라이언트에게 Return 할 sendMsg 메소드
 
         //방나누기 할 때 고쳐야겠네!
@@ -182,6 +329,7 @@ public class ChatServer {
             // Return 할 key값이 없을때까지
             while (iterator.hasNext()) {
                 try {
+
                     OutputStream dos = clients.get(iterator.next());
                     // System.out.println(msg);
 
@@ -193,6 +341,39 @@ public class ChatServer {
                     System.out.println(e);
                 }
             }
+
+//            for(int i = 0; i < listUser.size(); i++){
+//
+//
+//                //리스트에서 건진 아이템의 id와 그룹 id가 동일 -> 같은 방의 유저임. 메시지 보냄
+//                if(listUser.get(i).idGroup == idGroup){
+//
+//
+//                    try {
+//                        DataOutputStream dataOutputStream = listUser.get(i).dataOutputStream;
+//                        dataOutputStream.writeUTF(msg);
+//                    }
+//
+//                    //쓰기가 안되는 상황 발생 -> 소켓이 종료된 것임.
+//                    catch (IOException e)
+//                    {
+//                        e.printStackTrace();
+//                    }
+//
+//
+//                }
+//
+//
+//
+//
+//
+//            }
+
+
+
+
+
+
         }
     }
 }
