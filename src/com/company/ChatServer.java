@@ -20,35 +20,55 @@ import java.util.Iterator;
 //채팅 서버의 코드다. 인텔리제이 환경에서 디버그했고,
 //리눅스 서버에서 javac로 컴파일 후 구동한다.
 
+//외부 라이브러리로 json-simple.jar 를 사용하였다.
+//이 파일은 자바 환경에서 json-simple을 사용하기 위한 라이브러리다.
+
 /*
 컴파일 방법
 
 1. 터미널에서 javac 로 컴파일
 
->> javac -d . -cp "json-simple-1.1.1.jar" ChatServer.java
+    아래 명령어로 자바 파일을 컴파일 한다. 이 때,
+    같은 폴더에 json-simple jar 파일을 같이 두어야 컴파일이 된다.
 
-명령어 해석
-javac : 자바 컴파일
--d : 패키징 컴파일 예약어(패키지를 쓸 것이다)
-. : 현재 디렉토리에서 컴파일
 
--cp "XXX" : "XXX"로 클래스 패스 지정
-ChatServer.java : 이 자바 파일을 컴파일 함
+    >> javac -d . -cp "json-simple-1.1.1.jar" ChatServer.java
 
-정리하면 -> ChatServer.java 자바 파일을, "json-simple-1.1.1.jar" 클래스 패스와 함께
-현재 폴더에서 패키징 컴파일을 해라.
+    명령어 해석
+    javac : 자바 컴파일
+    -d : 패키징 컴파일 예약어(패키지를 쓸 것이다)
+    . : 현재 디렉토리에서 컴파일
+
+    -cp "XXX" : "XXX"로 클래스 패스 지정
+    ChatServer.java : 이 자바 파일을 컴파일 함
+
+    정리하면 -> ChatServer.java 자바 파일을, "json-simple-1.1.1.jar" 클래스 패스와 함께
+    현재 폴더에서 패키징 컴파일을 해라.
+
+
+대체 명령어
+
+    >> javac -d . -cp "./*" ChatServer.java
+    해석 : 현재 폴더에서 ChatServer.java 와 다른 모든 jar 파일의 클래스를 패키징 컴파일 하라
+    (jar 클래스 패스를 추가함)
 
 
 2. java 실행 -> json-simple 라이브러리 jar와 함께 실행
 
->> java -cp ".:json-simple-1.1.1.jar" com.company.ChatServer
-
-해석 : 자바 실행, 클래스 패스를 현재 폴더(.) 와, json-simple-1.1.1.jar 로 명시.
-"" 내부의 각 클래스 패스는 : 글자로 구분한다. "" 내부 내용은 띄어쓰기가 금지됨
-
-정리하면 -> 현재 폴더와 json-simple-1.1.1.jar 를 클래스 패스로 하여, com.company.ChatServer 를 실행하라
+    >> java -cp ".:json-simple-1.1.1.jar" com.company.ChatServer
 
 
+
+    해석 : 자바 실행, 클래스 패스를 현재 폴더(.) 와, json-simple-1.1.1.jar 로 명시.
+    "" 내부의 각 클래스 패스는 : 글자로 구분한다. "" 내부 내용은 띄어쓰기가 금지됨
+
+    정리하면 -> 현재 폴더와 json-simple-1.1.1.jar 를 클래스 패스로 하여, com.company.ChatServer 를 실행하라
+
+아래 명령어로도 실행이 가능
+
+    >> java -cp ".:./*" com.company.ChatServer
+
+    해석 : 현재 폴더와 현재 폴더의 다른 모든 jar 클래스 패스를 클래스 패스로 지정하고, ChatServer 실행하라
 
  */
 
