@@ -57,8 +57,6 @@ import java.util.Iterator;
 
     >> java -cp ".:json-simple-1.1.1.jar" com.company.ChatServer
 
-
-
     해석 : 자바 실행, 클래스 패스를 현재 폴더(.) 와, json-simple-1.1.1.jar 로 명시.
     "" 내부의 각 클래스 패스는 : 글자로 구분한다. "" 내부 내용은 띄어쓰기가 금지됨
 
@@ -69,6 +67,24 @@ import java.util.Iterator;
     >> java -cp ".:./*" com.company.ChatServer
 
     해석 : 현재 폴더와 현재 폴더의 다른 모든 jar 클래스 패스를 클래스 패스로 지정하고, ChatServer 실행하라
+
+
+
+
+
+서버는 클라이언트와 json 구조의 메세지를 주고 받게 된다.
+
+아래는 json 메세지의 구조다.
+
+	1. 그룹 id : 방 구별에 사용
+	2. 메세지 타입 : 방 입장, 방 나감, 채팅 메시지, 채팅 잠시 나감(화면 전환), 잠시 나감-> 재개
+	3. 채팅 내용(채팅 메시지 타입일 때만 사용됨)
+	4. 유저 이메일 ( 유저 구분에 id 처럼 사용 )
+	5. 유저 이름 (클라이언트 채팅 창에 표시됨)
+	6. 유저 프로필 URL (클라이언트에서 이미지 표시)
+	7. 메세지 작성 시간 (클라이언트에서 시간 표시)
+
+
 
  */
 
@@ -89,7 +105,6 @@ public class ChatServer {
 
     //채팅방 id
     int idGroup;
-
 
 
     //서버 소켓
@@ -136,6 +151,8 @@ public class ChatServer {
 
             //서버가 클라이언트로부터의 연결을 기다린다.
             while (true) {
+
+                // 클라이언트로부터의 소켓 생성을 listen 한다.
                 socket = serverSocket.accept();
 
                 //클라이언트의 ip 값을 가져온다.
@@ -144,7 +161,7 @@ public class ChatServer {
                 //ip 값을 출력한다.
                 System.out.println("ip 주소 +"+ip + "로 사용자가 연결되었습니다.");
 
-                //해당 클라이언트를 위한 스레드를 구동
+                //해당 클라이언트의 메시지를 수신하기 위한 서버의 스레드를 구동
                 new ServerChatThread(socket).start();
             }
         } catch (IOException e) {
@@ -220,23 +237,47 @@ public class ChatServer {
     }
 
 
+
+    //서버가 클라이언트로부터 메시지를 수신하기 위한 스레드
+
     class ServerChatThread extends Thread {
 
+        //클라이언트와 연결되는 소켓
         Socket socket = null;
 
-        String emailUser = null;
+
+        //채팅 데이터 관련 정보들 : 메시지 타입, 유저
 
 
-        DataInputStream input;
-        DataOutputStream output;
+        String msgType;
 
-        //멀티스레드의 생성자
+        String chatText;
+
+        String userEmail;
+
+        String userName;
+
+        String userProfileUrl;
+
+        String chatTime;
+
+
+
+
+
+
+
+        //소켓에서 생성된 스트림.
+        DataInputStream input; //서버로 들어오는 스트림
+        DataOutputStream output; // 서버에서 클라이언트로 가는 스트림
+
+        //서버 스레드의 생성자. 소켓을 받아 스트림 지정
         public ServerChatThread(Socket socket) {
             this.socket = socket;
 
 
             try {
-                // 객체를 주고받을 Stream생성자를 선언한다.
+                // 해당 클라이언트와 데이터를 주고받을 스트림을 생성한다.
                 input = new DataInputStream(socket.getInputStream());
                 output = new DataOutputStream(socket.getOutputStream());
             }
@@ -245,107 +286,84 @@ public class ChatServer {
         }
 
 
+        //클라이언트에서 서버로 들어온
+        //문자열 형태의 json 에서 필요한 데이터(방 정보, 유저 정보 등)를 추출하는 메소드
+        public void parseJson(String jsonString){
+
+
+
+
+            JSONParser jsonParser = new JSONParser();
+            JSONObject jsonObject = null;
+            try {
+                jsonObject = (JSONObject) jsonParser.parse(jsonString);
+
+                idGroup = Integer.parseInt( jsonObject.get("idGroup").toString() );
+
+                msgType = jsonObject.get("msgType").toString();
+
+                chatText = jsonObject.get("chatText").toString();
+
+                userEmail = jsonObject.get("userEmail").toString();
+
+                userName = jsonObject.get("userName").toString();
+
+                userProfileUrl = jsonObject.get("userProfileUrl").toString();
+
+                chatTime = jsonObject.get("chatTime").toString();
+
+
+                System.out.println("변환한 json : " + jsonObject.toJSONString());
+            }
+            catch (ParseException e) {
+                e.printStackTrace();
+            }
+
+
+
+
+        }
+
         //서버 스레드를 동작시킨다. : 클라이언트가 보내온 메세지를 받고, 접속한 클라이언트들에게 메세지를 전달한다.
         public void run() {
 
             try {
-                // 최초 접속 : 사용자의 이메일을 받아와 출력하고, 접속한 클라이언트들에게 해당 이메일을 전송
-                emailUser = input.readUTF();
-                System.out.println("사용자 이메일 : " + emailUser);
+                // 최초 접속 : 사용자의 메세지를 출력
+                String jsonMsg = input.readUTF();
+                System.out.println("최초 수신 메시지 : " + jsonMsg);
 
-                clients.put(emailUser, output);
-                System.out.println(emailUser+"유저의 OutputStream : " + clients.get(emailUser) );
+                //json 메세지를 파싱하여 채팅 정보 변수들에 세팅함.
+                //채팅 정보 변수들에는 방 번호, 메세지 타입, (채팅일 경우) 채팅 내용, 유저 이메일, 유저 이름, 유저 사진 url, 채팅 시간이 있다.
+                parseJson(jsonMsg);
 
-                sendMsg(emailUser + "   접속");
+                // 유저가 방에 접속했음
+                // 방이 없다면 방을 생성하고, 방에 유저를 등록함
+                clients.put(userEmail, output);
+
+
+
+
+
+//              System.out.println(userEmail +"유저의 OutputStream : " + clients.get(userEmail) );
+
+                sendMsg(userEmail + "   접속");
 
 
 
                 // 그후에 채팅메세지수신시
                 while (input != null) {
-                    try {
-                        //클라이언트가 보낸 메세지를 읽어들인다.
-                        String tempMsg = input.readUTF();
+                    //클라이언트가 보낸 메세지를 읽어들인다.
+                    String json2 = input.readUTF();
+                    System.out.println("서버에서 보낼 메시지 = "+json2);
+
+                    //json 메세지를 파싱하여 채팅 정보 변수들에 세팅함.
+                    //채팅 정보 변수들에는 방 번호, 메세지 타입, (채팅일 경우) 채팅 내용, 유저 이메일, 유저 이름, 유저 사진 url, 채팅 시간이 있다.
+                    parseJson(json2);
+
+                    //서버에 접속한 클라이언트들에게 메세지를 보낸다 : 방나누기 할 경우 달라짐@@@
+                    sendMsg(json2);
 
 
-
-                        System.out.println("서버에서 보낼 메시지 = "+tempMsg);
-                        JSONParser jsonParser = new JSONParser();
-                        JSONObject jsonObject = (JSONObject) jsonParser.parse(tempMsg);
-
-
-                        idGroup = Integer.parseInt( jsonObject.get("idGroup").toString() );
-
-
-//                        //userInfo 리스트에 유저 정보가 없다면 추가하기
-//                        if( isUserFirst()  ){
-//                            UserInfo userInfo = new UserInfo(idGroup, emailUser, output);
-//
-//                            listUser.add(userInfo);
-//
-//                            System.out.println("유저가 추가되었습니다.");
-//                        }
-
-
-                        //서버에 접속한 클라이언트들에게 메세지를 보낸다 : 방나누기 할 경우 달라짐@@@
-                        sendMsg(tempMsg);
-//
-//                        //방이 존재할 경우 그대로 유저를 추가하면 됨
-//                        if(rooms.containsKey(idGroup) )
-//                        {
-//                            System.out.println("기존 방에 추가");
-//
-//
-//                            //방 해쉬맵에서 방을 가져온다
-//                            ChatRoom chatRoom = rooms.get(idGroup);
-//
-//                            //방에 유저 추가
-//                            chatRoom.addUser(emailUser, output);
-//
-//                            chatRoom.printInfo();
-//                        }
-//                        //방이 존재하지 않음 -> 새 방을 생성 후 유저 추가
-//                        else{
-//
-//
-//                            System.out.println("새 방 생성");
-//                            //새 방 생성
-//                            ChatRoom chatRoom = new ChatRoom(idGroup);
-//
-//                            //방 해쉬맵에 방 추가
-//                            rooms.put(idGroup, chatRoom);
-//
-//                            //방에 유저 추가
-//                            chatRoom.addUser(emailUser, output);
-//
-//                            chatRoom.printInfo();
-//                        }
-//
-
-
-//                        String chatText = jsonObject.get("chatText").toString();
-//                        String chatWriterName = jsonObject.get("chatWriterName").toString();
-//
-//                        String chatTime = jsonObject.get("chatTime").toString();
-//                        String chatWriterProfile =  jsonObject.get("chatWriterProfile").toString();
-
-                        String chatWriterEmail = jsonObject.get("chatWriterEmail").toString();
-
-
-
-
-
-//                        System.out.println("변환한 객체 = "+idGroup+chatText+chatWriterEmail+chatWriterName+chatText+chatTime+chatWriterProfile);
-
-
-
-
-
-                    } catch (IOException e) {
-                        sendMsg("No massege");
-                        break;
-                    } catch (ParseException e) {
-                        e.printStackTrace();
-                    }
                 }
             } catch (IOException e) {
                 System.out.println(e);
@@ -359,7 +377,7 @@ public class ChatServer {
                 UserInfo userInfo = listUser.get(i);
 
                 //방 id 같고 유저 동일 -> 추가 X
-                if(  userInfo.idGroup == idGroup && userInfo.emailUser.equals(emailUser)){
+                if(  userInfo.idGroup == idGroup && userInfo.emailUser.equals(userEmail)){
 
                     return false;
                 }
@@ -396,38 +414,12 @@ public class ChatServer {
                 }
             }
 
-//            for(int i = 0; i < listUser.size(); i++){
-//
-//
-//                //리스트에서 건진 아이템의 id와 그룹 id가 동일 -> 같은 방의 유저임. 메시지 보냄
-//                if(listUser.get(i).idGroup == idGroup){
-//
-//
-//                    try {
-//                        DataOutputStream dataOutputStream = listUser.get(i).dataOutputStream;
-//                        dataOutputStream.writeUTF(msg);
-//                    }
-//
-//                    //쓰기가 안되는 상황 발생 -> 소켓이 종료된 것임.
-//                    catch (IOException e)
-//                    {
-//                        e.printStackTrace();
-//                    }
-//
-//
-//                }
-//
-//
-//
-//
-//
-//            }
-
-
-
-
-
 
         }
+
+
     }
+
+
+
 }
