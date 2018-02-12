@@ -32,8 +32,8 @@ import java.util.Iterator;
     같은 폴더에 json-simple jar 파일을 같이 두어야 컴파일이 된다.
 
 
-    >> javac -d . -cp "json-simple-1.1.1.jar" ChatServer.java
-
+    >> javac -d . -cp "json-20180130.jar" ChatServer.java
+javac -d . -cp "json-20180130.jar" *.java
     명령어 해석
     javac : 자바 컴파일
     -d : 패키징 컴파일 예약어(패키지를 쓸 것이다)
@@ -55,7 +55,7 @@ import java.util.Iterator;
 
 2. java 실행 -> json-simple 라이브러리 jar와 함께 실행
 
-    >> java -cp ".:json-simple-1.1.1.jar" com.songtec.ChatServer
+    >> java -cp ".:json-20180130.jar" com.songtec.ChatServer
 
     해석 : 자바 실행, 클래스 패스를 현재 폴더(.) 와, json-simple-1.1.1.jar 로 명시.
     "" 내부의 각 클래스 패스는 : 글자로 구분한다. "" 내부 내용은 띄어쓰기가 금지됨

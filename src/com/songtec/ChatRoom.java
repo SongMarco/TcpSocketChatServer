@@ -124,7 +124,7 @@ class ChatRoom {
             }
             System.out.println("*** 방 정보 출력 완료 ***");
         }
-        catch(java.lang.NullPointerException e) {
+        catch(NullPointerException e) {
             System.out.println("*** 방이 비었습니다. ***");
         }
 
