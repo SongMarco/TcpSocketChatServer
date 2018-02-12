@@ -1,4 +1,4 @@
-package com.company;
+package com.songtec;
 
 import java.io.DataOutputStream;
 import java.net.Socket;

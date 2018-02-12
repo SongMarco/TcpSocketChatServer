@@ -1,6 +1,6 @@
-package com.company;
+package com.songtec;
 
-class ChatMessage {
+public class ChatMessage {
 
     int idGroup;
 
