@@ -8,14 +8,12 @@ import org.json.JSONObject;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
-
 
 //채팅 서버의 코드다. 인텔리제이 환경에서 디버그했고,
 //리눅스 서버에서 javac로 컴파일 후 구동한다.
@@ -92,8 +90,8 @@ javac -d . -cp "json-20180130.jar" *.java
 public class ChatServer {
 
 
-    //서버에 접속한 클라이언트의 해쉬맵 : 유저 이메일 - 아웃풋 스트림으로 구성됨
-    HashMap<String, DataOutputStream> clients;
+    //서버에 접속한 클라이언트의 해쉬맵 : 유저 이메일 - 소켓으로 구성됨
+    HashMap<String, Socket> mapSocket;
 
 
     //서버 소켓
@@ -111,12 +109,12 @@ public class ChatServer {
         // 클라이언트 해쉬맵 생성자(Key, value) 선언
 
         //유저의 이름과, 해당 유저가 생성한 소켓의 아웃풋 스트림으로 구성됨
-        clients = new HashMap<String, DataOutputStream>();
+        mapSocket = new HashMap<String, Socket>();
 
 //        roomManager = new RoomManager();
 
-        // clients 동기화
-        Collections.synchronizedMap(clients);
+        // mapSocket 동기화
+        Collections.synchronizedMap(mapSocket);
 
     }
 
@@ -144,6 +142,7 @@ public class ChatServer {
 
                 //클라이언트의 ip 값을 가져온다.
                 InetAddress ip = socket.getInetAddress();
+
 
                 //ip 값을 출력한다.
                 System.out.println("ip 주소 +" + ip + "로 사용자가 연결되었습니다.");
@@ -294,85 +293,12 @@ public class ChatServer {
         public void run() {
 
             try {
-                // 최초 접속 : 사용자가 방에 참여한 것인지, 채팅을 재개하는 것인지를 확인할 수 있음.
-
-                //메세지의 타입을 확인(방 참여? 채팅 재개?) 하여,
-                String jsonMsg = input.readUTF();
-                System.out.println("최초 수신 메시지 : " + jsonMsg);
-
-                //json 메세지를 파싱하여 채팅 정보 변수들에 세팅함.
-                //채팅 정보 변수들에는 방 번호, 메세지 타입, (채팅일 경우) 채팅 내용, 유저 이메일, 유저 이름, 유저 사진 url, 채팅 시간이 있다.
-                chatMessage = parseJson(jsonMsg);
-
-                // @@@@@ 유저가 방에 접속했음
-                // 방이 없다면 방을 생성하고, 방에 유저를 등록함
-                // 방에 유저를 등록하면 공지용 메세지를 클라이언트에게 보낸다(@@ 님이 그룹 채팅에 참여했습니다)
-
-                idGroup = chatMessage.idGroup;
-
-                //해당 그룹 id 를 가진 채팅방이 없다면
-                if (RoomManager.getRoomById(idGroup) == null) {
-
-                    //해당 방 id로 새 방을 생성하고, 유저를 참가시킨다.
-                    chatRoom = RoomManager.createRoomById(idGroup);
-
-                    //방에 포함시킬 유저 객체를 생성
-                    chatUser = new ChatUser(chatMessage.userEmail, chatMessage.userName, this.socket);
-
-                    //방에 유저를 참가시킨다.
-                    assert chatRoom != null;
-                    chatRoom.enterUser(chatUser);
-
-
-                    //방 정보 확인을 위해 터미널 상에 출력하게 한다.
-                    //방 정보에는 방 id, 유저의 이메일, 소켓, 이름이 있다.
-                    chatRoom.printRoomInfo();
-
-
-
-
-                }
-                // 이미 해당 채팅방이 존재한다면
-                else {
-
-                    //해당 방을 룸매니저로 가져온다.
-                    chatRoom = RoomManager.getRoomById(idGroup);
-
-                    //방에 포함시킬 유저 객체를 생성
-                    chatUser = new ChatUser(chatMessage.userEmail, chatMessage.userName, this.socket);
-
-                    //유저를 방에 참가시킨다.
-                    if (chatRoom != null) {
-                        chatRoom.enterUser(chatUser);
-                    }
-
-                    //방 정보 확인을 위해 터미널 상에 출력하게 한다.
-                    //방 정보에는 방 id, 유저의 이메일, 소켓, 이름이 있다.
-                    chatRoom.printRoomInfo();
-
-                }
-
-                //소켓 생성 후 최초 수신 메세지의 유형이 '채팅 참가'인 경우
-                if(chatMessage.msgType.equals("joinChat")){
-                    //채팅방에 있는 유저들에게 해당 유저가 방에 참여했다는 메세지를 보낸다.
-                    sendRoomMsg(chatRoom, jsonMsg);
-
-                }
-                //'채팅 재개' 인 경우, 메세지를 따로 보내지 않는다.
-
-
-
-//                clients.put(userEmail, output);
-
-
-//                sendMsg(chatMessage.userEmail + "   접속");
-
 
                 // 방 접속 완료 후 클라이언트와 메세지 송수신하도록 무한루프. -> 유저가 방에서 나가면 io exception 으로 들어감
                 while (input != null) {
                     //클라이언트가 보낸 메세지를 읽어들인다.
                     String jsonReceived = input.readUTF();
-                    System.out.println("서버에서 보낼 메시지 = " + jsonReceived);
+                    System.out.println("서버가 받은 메시지 = " + jsonReceived);
 
                     //json 메세지를 파싱하여 채팅 정보 변수들에 세팅함.
                     //채팅 정보 변수들에는 방 번호, 메세지 타입, (채팅일 경우) 채팅 내용, 유저 이메일, 유저 이름, 유저 사진 url, 채팅 시간이 있다.
@@ -403,7 +329,7 @@ public class ChatServer {
                         ChatRoom chatRoom = RoomManager.getRoomById(idGroup);
 
                         //방에서 퇴장시킬 유저 객체를 가져옴
-                        ChatUser chatUser = chatRoom.getUserMap().get(chatMessage.userEmail);
+                        ChatUser chatUser = chatRoom.getUserMap().get(chatMessageReceived.userEmail);
 
                         //유저를 방에서 퇴장 처리함
                         chatUser.exitRoom(chatRoom);
@@ -414,11 +340,13 @@ public class ChatServer {
                         //방에 있는 유저들에게 메세지를 보낸다.
                         sendRoomMsg(chatRoom, jsonReceived);
 
+                        //소켓을 닫는 코드 주석화하였다. 소켓을 닫는 시점은 클라이언트가 결정한다.
+                        //because : 유저가 채팅방에 하나도 들어가지 않았을 때에만 소켓을 닫아야 함(공동 소켓 사용)
                         //해당 클라이언트에 대한 소켓을 닫는다.
-                        socket.close();
+//                        socket.close();
 
                         //while 문을 탈출하여 해당 유저에 대한 서버 채팅 스레드 종료
-                        break;
+//                        break;
 
                     }
                     // 채팅 화면에서 다른 화면으로 넘어갈 경우(일시적인 자리 비움) -> 소켓 파기, 서버 챗 스레드 종료.
@@ -427,11 +355,72 @@ public class ChatServer {
 
 
                         //해당 클라이언트에 대한 소켓을 닫는다.
-                        socket.close();
+//                        socket.close();
 
                         //while 문을 탈출하여 해당 유저에 대한 서버 채팅 스레드 종료
-                        break;
+//                        break;
 
+                    } else if (msgType.equals("joinChat")) {
+
+                        // @@@@@ 유저가 방에 접속했음
+                        // 방이 없다면 방을 생성하고, 방에 유저를 등록함
+                        // 방에 유저를 등록하면 공지용 메세지를 클라이언트에게 보낸다(@@ 님이 그룹 채팅에 참여했습니다)
+
+                        idGroup = chatMessageReceived.idGroup;
+
+                        //해당 그룹 id 를 가진 채팅방이 없다면
+                        if (RoomManager.getRoomById(idGroup) == null) {
+
+                            //해당 방 id로 새 방을 생성하고, 유저를 참가시킨다.
+                            chatRoom = RoomManager.createRoomById(idGroup);
+
+                            //방에 포함시킬 유저 객체를 생성
+                            chatUser = new ChatUser(chatMessageReceived.userEmail, chatMessageReceived.userName, this.socket);
+
+                            //방에 유저를 참가시킨다.
+                            assert chatRoom != null;
+                            chatRoom.enterUser(chatUser);
+
+
+                            //방 정보 확인을 위해 터미널 상에 출력하게 한다.
+                            //방 정보에는 방 id, 유저의 이메일, 소켓, 이름이 있다.
+                            chatRoom.printRoomInfo();
+
+
+                        }
+                        // 이미 해당 채팅방이 존재한다면
+                        else {
+
+                            //해당 방을 룸매니저로 가져온다.
+                            chatRoom = RoomManager.getRoomById(idGroup);
+
+                            //방에 포함시킬 유저 객체를 생성
+                            chatUser = new ChatUser(chatMessageReceived.userEmail, chatMessageReceived.userName, this.socket);
+
+                            //유저를 방에 참가시킨다.
+                            if (chatRoom != null) {
+                                chatRoom.enterUser(chatUser);
+                            }
+
+                            //방 정보 확인을 위해 터미널 상에 출력하게 한다.
+                            //방 정보에는 방 id, 유저의 이메일, 소켓, 이름이 있다.
+                            chatRoom.printRoomInfo();
+
+                        }
+                        //채팅방에 있는 유저들에게 해당 유저가 방에 참여했다는 메세지를 보낸다.
+                        sendRoomMsg(chatRoom, jsonReceived);
+                        //소켓 생성 후 최초 수신 메세지의 유형이 '채팅 참가'인 경우
+
+                    }
+                    //소켓 새로 생성 -> 유저의 이메일 정보가 온다.
+                    //유저 이메일-소켓 해쉬맵에 유저 이메
+                    else if (msgType.equals("userInfo")) {
+
+
+                        //유저 이메일을 json 에서 가져온다.
+                        String userEmail = chatMessageReceived.userEmail;
+
+                        mapSocket.put(userEmail, socket);
                     }
 
 
@@ -441,49 +430,21 @@ public class ChatServer {
             //사용자가 방을 나가게 될 경우, 아래의 io exception 에 걸리게 된다.
             catch (IOException e) {
 
-                System.out.println("소켓에 쓰기 실패! 방 인원 에서 해당 사용자를 제거합니다");
+                System.out.println("소켓에 쓰기 실패! 방 인원 에서 해당 사용자 소켓을 제거합니다 -> 재접속 후 다시 세팅하게 됨");
 //
 //                //해당 방을 룸매니저로 가져온다.
 //                ChatRoom chatRoom = RoomManager.getRoomById(idGroup);
 //
-//                //방에서 퇴장시킬 유저 객체를 가져옴
+//                //방에서 소켓을 null 처리할 유저를 가져옴
 //                ChatUser chatUser = chatRoom.getUserMap().get(chatMessage.userEmail);
 //
 //                //유저를 방에서 퇴장 처리함
 //                chatUser.exitRoom(chatRoom);
 ////                //확인을 위해 룸 정보를 출력
 //                chatRoom.printRoomInfo();
+//
 
-
-//                e.printStackTrace();
-            }
-
-
-        }
-
-        // 메세지수신후 클라이언트에게 Return 할 sendMsg 메소드
-
-        //방나누기 할 때 고쳐야겠네!
-        private void sendMsg(String msg) {
-
-
-            // clients의 Key값을 받아서 String 배열로선언
-            Iterator<String> iterator = clients.keySet().iterator();
-
-            // Return 할 key값이 없을때까지
-            while (iterator.hasNext()) {
-                try {
-
-                    OutputStream dos = clients.get(iterator.next());
-                    // System.out.println(msg);
-
-                    //아웃풋 스트림을 통해 메시지를 보낸다 -> 채팅 내용이 서버에서 클라이언트로 전달된다.
-                    DataOutputStream output = new DataOutputStream(dos);
-                    output.writeUTF(msg);
-
-                } catch (IOException e) {
-                    System.out.println(e);
-                }
+                e.printStackTrace();
             }
 
 
@@ -498,56 +459,40 @@ public class ChatServer {
 
 
             // 유저 목록을 순환하며, 필요한 요소를 제거하기 위해 iterator 사용
-            Iterator<String> iterator = userMap.keySet().iterator();
 
-            // Return 할 key값이 없을때까지
-            while (iterator.hasNext()) {
-                try {
+            if (userMap != null) {
+                Iterator<String> iterator = userMap.keySet().iterator();
 
+
+                // Return 할 key값이 없을때까지
+                while (iterator.hasNext()) {
                     ChatUser chatUser = userMap.get(iterator.next());
+                    Socket userSocket;
+                    try {
 
-                    //소켓에서 아웃풋스트림을 가져와 세팅한다.
-                    DataOutputStream output = new DataOutputStream(chatUser.getSocket().getOutputStream());
+                        //유저의 소켓을, 유저 이메일-소켓 해쉬맵에서 가져온다.
+                        userSocket = mapSocket.get(chatUser.getUserEmail());
 
-                    //아웃풋 스트림에 메세지를 보낸다.
-                    output.writeUTF(msg);
-
-                }
+                        //소켓에서 아웃풋스트림을 가져와 세팅한다.
+                        DataOutputStream output = new DataOutputStream(userSocket.getOutputStream());
 
 
-                //사용자가 채팅 중이 아닐 경우(자리 비움)  해당 exception 에 들어온다. -> 추후 알림을 날리도록 구현 예정.
-                catch (IOException e) {
+                        //아웃풋 스트림에 메세지를 보낸다.
+                        //소켓이 올바르지 않다면(끊기고 다시 연결하여 갱신 필요) -> 아래의 IOException 으로 들어간다.
+                        output.writeUTF(msg);
 
-                    System.out.println(e);
+                    }
+
+                    // 사용자 소켓이 새로 연결된 경우 이 exception 으로 들어오게 된다.
+                    // -> 유저 이메일-소켓 해쉬맵을 가져와 해당 유저의 소켓 수정 후 다시 쓰기.
+                    catch (IOException e) {
+
+                        e.printStackTrace();
+
+                    }
                 }
             }
-        }
 
-        //json 형태의 공지 사항을 만드는 메소드(채팅 참여, 채팅 나감 등의 공지)
-        public String makeJsonNotice(String noticeText) {
-
-            JSONObject jsonObject = new JSONObject();
-
-            jsonObject.put("idGroup", idGroup);
-            //보낼 json 메시지의 타입 -> 채팅방 접속인지, 나간 건지, 채팅인지 구별할 때 사용
-            //현재 채팅 종료 메시지를 보낼 것이므로, exitChat 으로 타입을 세팅
-//            String msgType = "exitChat";
-            jsonObject.put("msgType", "chatNotice");
-
-            //채팅 내용 : 메시지 타입이 채팅일 때만 사용됨
-            jsonObject.put("chatText", noticeText);
-
-            //채팅 접속한 사람 이메일
-            jsonObject.put("userEmail", chatMessage.userEmail);
-
-            //채팅 접속자 이름
-            jsonObject.put("userName", chatMessage.userName);
-
-            //채팅 접속자 프로필 사진 url
-            jsonObject.put("userProfileUrl", chatMessage.userProfileUrl);
-
-
-            return jsonObject.toString();
         }
 
 
