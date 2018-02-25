@@ -30,8 +30,8 @@ import java.util.Iterator;
     같은 폴더에 json-simple jar 파일을 같이 두어야 컴파일이 된다.
 
 
-    >> javac -d . -cp "json-20180130.jar" ChatServer.java
-javac -d . -cp "json-20180130.jar" *.java
+    >> javac -d . -cp "json-20180130.jar" *.java
+
     명령어 해석
     javac : 자바 컴파일
     -d : 패키징 컴파일 예약어(패키지를 쓸 것이다)
@@ -224,7 +224,6 @@ public class ChatServer {
         //채팅 데이터 관련 정보들 : 메시지 타입, 유저
 
 
-        ChatMessage chatMessage;
         ChatRoom chatRoom;
         ChatUser chatUser;
 
